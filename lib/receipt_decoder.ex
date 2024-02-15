@@ -8,8 +8,10 @@ defmodule ReceiptDecoder do
   alias ReceiptDecoder.Verifier
   alias ReceiptDecoder.AppReceipt
 
+  @type decode_option :: {:sandbox, boolean}
+
   @doc """
-  Decode iOS App receipt
+  Decode iOS App receipt.
 
   ## Example
 
@@ -36,16 +38,27 @@ defmodule ReceiptDecoder do
     sha1_hash: <<253, 23, 138, 194, 193, 253, 204, 39, 239, 220, 43, 200, 223,
       213, 74, 210, 39, 101, 79, 47>>}}
   ```
+
+  ### Options
+
+  * `:sandbox` - Use this value during development to skip the verification of the certifications
+
   """
-  @spec decode(String.t()) :: {:ok, AppReceipt.t()} | {:error, any}
-  def decode(base64_receipt) do
+  @spec decode(String.t(), [decode_option]) :: {:ok, AppReceipt.t()} | {:error, any}
+  def decode(base64_receipt, opts \\ []) do
     with {:ok, receipt} <- Extractor.decode_receipt(base64_receipt),
-         :ok <- Verifier.verify(receipt),
+         :ok <- verify(receipt, opts),
          {:ok, payload} <- Extractor.extract_payload(receipt),
          {:ok, app_receipt} <- Parser.parse_payload(payload) do
       {:ok, app_receipt}
     else
       err -> err
     end
+  end
+
+  defp verify(receipt, opts) do
+    if Keyword.get(opts, :sandbox, false),
+      do: :ok,
+      else: Verifier.verify(receipt)
   end
 end
